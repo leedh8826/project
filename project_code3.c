@@ -125,10 +125,10 @@ struct sniff_tcp *tcp;
 char *payload;
 u_int size_ip;
 u_int size_tcp;
-u_char domain_str[256]={0x00};
- struct check_domain_struct{
-        char domain[256];
-    };
+// u_char domain_str[256]={0x00};
+// struct check_domain_struct{
+//     char domain[256];
+// };
 
 /*아스키 변환한 ip */
 char src_ip_str[IP_STR_ADDR_LEN];
@@ -190,14 +190,14 @@ unsigned short in_cksum ( u_short *addr , int len );
 int sendraw( u_char* pre_packet , int mode ) ;
 
 /*sql func */
-void sql_query_insert();
-void sql_search_domain(struct check_domain_struct *);
+void sql_query_insert(u_char [256]);
+//void sql_search_domain(struct check_domain_struct *);
 
 /*print net data */
 void print_ethdata();
 void print_ipdata();
 void print_tcpdata();
-void print_domaindata();
+//void print_domaindata();
 void print_packet_info(const struct iphdr *, const struct tcphdr *, const u_char *, int);
 void print_ip_protocol(struct iphdr*);
 //void printBlockedNetData();
@@ -271,6 +271,18 @@ int main(){
             printf("ERROR: SQL connect fail %s",mysql_error(conn) );        
     }else{printf("Connect sql\n");}
     /* SQL Connect end */
+    
+    // --- 도메인 정보 DB에서 조회
+    char query[]="select harmful_domain from harmful_domain_index";
+       
+    if(mysql_query(conn,query)){
+        printf("ERROR: SQL query fail %s",mysql_error(conn) );        
+    }
+    // 조회한 DB 값 Set
+    res=mysql_store_result(conn);
+    set_dynamic_domain_list(res);
+    //도메인을 따로 셋한후 res해제    
+    mysql_free_result(res);
 
     int result = 0 ;
     //result = pcap_loop(handle, 10, got_packet, NULL) ;
@@ -284,6 +296,8 @@ int main(){
     
     /* And close the session */
     pcap_close(handle);
+
+    free_dynamic_domain_list();
     
     return 0;
 }
@@ -293,6 +307,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,const u_char *pac
     set_ethernet((struct sniff_ethernet*)(packet));
     set_ip((struct sniff_ip*)(packet + SIZE_ETHERNET));//메모리이동 패킷에 이더넷사이즈만큼 
     set_size_ip(IP_HL(get_ip())*4);
+    u_char domain_str[256]={0x00};
         
     if (size_ip < 20) {//ip 사이즈의 길이 판별 
         printf("   * Invalid IP header length: %u bytes\n", get_size_ip());
@@ -320,31 +335,33 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,const u_char *pac
     if(domain!=NULL){
         domain_end=strstr(domain,"\x0d\x0a");            //도메인의 끝을 찾기위해 메모리의 0d 0a 위치를 찾음 도메인의 끝
         if(domain_end!=NULL){
-            domain_len=domain_end-domain-6;//"Host: "이 6자리 해당문자열을 빼고 길이를 측정  
+            domain_len=domain_end-domain-6;//"Host: "이 6자리 해당문자열을 빼고 길이를 측정 
+            strncpy(domain_str , domain + 6 , domain_len );
         }
     }
    
     // -------------- 추가한 도메인 함수로 대처    
     // define variable with malloc .
-    int check_domain_str_count = 10000 ;
-    struct check_domain_struct *check_domain_str = NULL;
-    check_domain_str = malloc ( sizeof( struct check_domain_struct ) * check_domain_str_count );
-    if ( check_domain_str == NULL ) {
-                fprintf(stderr, "ERROR: malloc fail (line=%d) !!!\n",
-                __LINE__);
-    } else {
-        //fprintf(stdout, "INFO: malloc OK (line=%d) !!!\n",
-        //      __LINE__);
-    }
+    // int check_domain_str_count = 10000 ;
+    // struct check_domain_struct *check_domain_str = NULL;
+    // check_domain_str = malloc ( sizeof( struct check_domain_struct ) * check_domain_str_count );
+    // if ( check_domain_str == NULL ) {
+    //             fprintf(stderr, "ERROR: malloc fail (line=%d) !!!\n",
+    //             __LINE__);
+    // } else {
+    //     //fprintf(stdout, "INFO: malloc OK (line=%d) !!!\n",
+    //     //      __LINE__);
+    // }
     
-    memset ( check_domain_str , 0x00 ,  sizeof(struct check_domain_struct) *  check_domain_str_count);
+    // memset ( check_domain_str , 0x00 ,  sizeof(struct check_domain_struct) *  check_domain_str_count);
     
     
     /* DB에서 차단할 도메인을 가져옴 */
-    sql_search_domain(check_domain_str);
-
-    // -----------------------------------------------------
+    //sql_search_domain(check_domain_str);
+    DYNAMIC_DOMAIN_LIST *check_domain_str = get_dynamic_domain_list();
     
+    // -----------------------------------------------------
+    printf("\n\n %s \n\n", domain);
     if ( domain_len ) {
         printf("domainlen\n");
         int cmp_ret = 0;
@@ -353,20 +370,20 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,const u_char *pac
         // for loop 1 .
         
         // 도메인 함수 get_dynamic_domain_list()->size로 100 대신 
-        for ( int i = 0 ; i < 100 ; i++ ) {
+        for ( int i = 0 ; i < check_domain_str->size ; i++ ) {
             //cmp_ret = strcmp ( check_domain , domain_str ) ;
             //cmp_ret = strcmp ( check_domain_ptr[i] ,
-            int str1_len = 
-                strlen ( check_domain_str[i].domain );
+            
+            int str1_len = strlen ( check_domain_str->domains[i] );
                // printf("domain : %s\n",check_domain_str[i].domain);
-            int str2_len = 
-                strlen ( domain_str );
+            int str2_len = strlen ( domain_str );
                 //printf("domain str : %s\n",domain_str);
+
             if ( str1_len != str2_len ) {//길이를 미리 계산해두었을때 서로같지않으면 다음루프로  
                 continue; // check next array value .
             }
             
-            cmp_ret = strcmp ( check_domain_str[i].domain ,  
+            cmp_ret = strcmp ( check_domain_str->domains[i] ,  
                         domain_str ) ;
             printf("DEBUG: domain name check result : %d\n" , 
                                 cmp_ret );
@@ -375,7 +392,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,const u_char *pac
             }
             
             // break if meet null data array .
-            if ( strlen(check_domain_str[i].domain) == 0 ) {//도메인배열에 값이없으면 반복문 종료 
+            if ( strlen(check_domain_str->domains[i]) == 0 ) {//도메인배열에 값이없으면 반복문 종료 
                 break; // stop for loop 1 .
             }
 
@@ -385,7 +402,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,const u_char *pac
                 print_ethdata();
                 print_ipdata();
                 print_tcpdata();
-                print_domaindata();
+                //print_domaindata();
             
                 printf("DEBUG: domain blocked .\n");
                 int sendraw_ret = sendraw(packet , sendraw_mode);
@@ -397,20 +414,23 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,const u_char *pac
             int query_stat = 0;
             char query_str[1048576] = { 0x00 };
             //sprintf 문자열에 서식문자의 값을포함하여 쿼리문을 만들어줌 
-            sql_query_insert();
+            sql_query_insert(domain_str);
         
             // end insert log to db .
 
             // 기존 코드로 대체-----------------------
+
+            free_dynamic_domain_list();
+
             //동적할당된 메모리 해제 
-            if ( check_domain_str != NULL ) {
-                free(check_domain_str);
-                check_domain_str = NULL;
-            } else {
-                fprintf(stderr, "CRIT: check_domain_str"
-                        " was already free (line=%d)\n",
-                            __LINE__) ;
-            }
+            // if ( check_domain_str != NULL ) {
+            //     free(check_domain_str);
+            //     check_domain_str = NULL;
+            // } else {
+            //     fprintf(stderr, "CRIT: check_domain_str"
+            //             " was already free (line=%d)\n",
+            //                 __LINE__) ;
+            // }
         
     } // end if domain_len .
 }   
@@ -533,7 +553,7 @@ int sendraw( u_char* pre_packet, int mode)//캡쳐된 패킷 전체데이터 ,mo
 				#endif
 				size_vlan = 4;
 				//memcpy(packet, pre_packet, size_vlan);//des,src,size 전송할 패킷 수신받은 패킷 
-                	memcpy(packet, pre_packet+14, size_vlan);//vlan사용시 이더넷 뒤에 vlan파트를 넣어줌 
+                memcpy(packet, pre_packet+14, size_vlan);//vlan사용시 이더넷 뒤에 vlan파트를 넣어줌 
 			} else if (ethernet->ether_type == (unsigned short)*(unsigned short*)&"\x08\x00" ) {//vlan을 사용하지 않음 ipv4(08 00)
 				#ifdef SUPPORT_OUTPUT
 
@@ -925,7 +945,7 @@ print_payload_right(const u_char *payload, int len)
 
 
 
-void sql_query_insert(){
+void sql_query_insert(u_char domain_str[256]){
     struct sniff_ip *sql_ip=get_ip();
     struct sniff_tcp *sql_tcp=get_tcp();
     char * ip_buf,*ip_buf2;
@@ -959,23 +979,23 @@ void sql_query_insert(){
 
 }
 
-void sql_search_domain(struct check_domain_struct * domainstr){
+// void sql_search_domain(struct check_domain_struct * domainstr){
    
-    int i=0;    
-    char query[]="select harmful_domain from harmful_domain_index";
+//     int i=0;    
+//     char query[]="select harmful_domain from harmful_domain_index";
        
-    if(mysql_query(conn,query)){
-        printf("ERROR: SQL query fail %s",mysql_error(conn) );        
-    }
+//     if(mysql_query(conn,query)){
+//         printf("ERROR: SQL query fail %s",mysql_error(conn) );        
+//     }
    
-    res=mysql_store_result(conn);
-    while((row=mysql_fetch_row(res))!=NULL){
-         strcpy(domainstr[i].domain, row[0] );
-         i++;
+//     res=mysql_store_result(conn);
+//     while((row=mysql_fetch_row(res))!=NULL){
+//          strcpy(domainstr[i].domain, row[0] );
+//          i++;
 
-    }
+//     }
    
-}
+// }
 
 void print_ethdata(){
     char *ether_dst = ethernet_address_to_string(get_ethernet()->ether_dhost);
@@ -987,16 +1007,20 @@ void print_ethdata(){
 }
 
 void print_ipdata(){
-    struct sniff_ip *print_ip=get_ip();
-    /* IP 주소를 아스키 코드로 */
-    char * ip_buf,*ip_buf2;
+    // struct sniff_ip *print_ip=get_ip();
+    // /* IP 주소를 아스키 코드로 */
+    // char * ip_buf,*ip_buf2;
+
     char src_ip[IP_STR_ADDR_LEN];
     char dst_ip[IP_STR_ADDR_LEN];
 
-    ip_buf= inet_ntoa(print_ip->ip_dst);//4바이트아이피주소를 아스키로
-    strcpy(dst_ip,ip_buf);
-    ip_buf2 =inet_ntoa(print_ip->ip_src);
-    strcpy(src_ip,ip_buf2);
+    // ip_buf= inet_ntoa(print_ip->ip_dst);//4바이트아이피주소를 아스키로
+    // strcpy(dst_ip,ip_buf);
+    // ip_buf2 =inet_ntoa(print_ip->ip_src);
+    // strcpy(src_ip,ip_buf2);
+
+    strcpy(dst_ip, inet_ntoa(get_ip()->ip_dst));
+    strcpy(src_ip, inet_ntoa(get_ip()->ip_src));
 
     printf("IP src : %s\n", src_ip);
     printf("IP dst : %s\n", dst_ip);
@@ -1014,26 +1038,28 @@ void print_tcpdata(){
     printf("dst Port : %u\n" , tcp_port_dst);
 
 }
-void print_domaindata(){
-     /* 페이로드의 도메인 처리 */
-    char * pload=get_payload();
 
-    u_char *domain = NULL;
-    u_char *domain_end=NULL;
-    int domain_len = 0;
-    domain=strstr(pload,"Host: "); // 특정문자를 찾아서 그 위치르 반환 도메인의 시작지점
+// 불필요한 함수 처리
+// void print_domaindata(){
+//      /* 페이로드의 도메인 처리 */
+//     char * pload=get_payload();
+
+//     u_char *domain = NULL;
+//     u_char *domain_end=NULL;
+//     int domain_len = 0;
+//     domain=strstr(pload,"Host: "); // 특정문자를 찾아서 그 위치르 반환 도메인의 시작지점
         
-    if(domain!=NULL){
-        domain_end=strstr(domain,"\x0d\x0a");//도메인의 끝을 찾기위해 메모리의 0d 0a 위치를 찾음 도메인의 끝         
-        if(domain_end!=NULL){
+//     if(domain!=NULL){
+//         domain_end=strstr(domain,"\x0d\x0a");//도메인의 끝을 찾기위해 메모리의 0d 0a 위치를 찾음 도메인의 끝         
+//         if(domain_end!=NULL){
 
-            domain_len=domain_end-domain-6;//"Host: "이 6자리 해당문자열을 빼고 길이를 측정 
-            strncpy(domain_str,domain+6,domain_len);
-            printf("Doamin :  %s .\n",domain_str);
+//             domain_len=domain_end-domain-6;//"Host: "이 6자리 해당문자열을 빼고 길이를 측정 
+//             strncpy(domain_str,domain+6,domain_len);
+//             printf("Doamin :  %s .\n",domain_str);
             
-        }
-    }
-}
+//         }
+//     }
+// }
 
 void print_packet_info(const struct iphdr *iphdr, const struct tcphdr *tcphdr, const u_char *payload, int size_payload) {
     
@@ -1086,6 +1112,7 @@ void print_ip_protocol(struct iphdr* iphdr){
             break;
     }
 }
+
 /*Get functions*/ 
 struct sniff_ethernet* get_ethernet() {
     return ethernet;
@@ -1211,7 +1238,7 @@ void set_dynamic_domain_list(MYSQL_RES* result) {
     }
 
     global_list = (DYNAMIC_DOMAIN_LIST*)malloc(sizeof(DYNAMIC_DOMAIN_LIST));
-    if (globalList == NULL) {
+    if (global_list == NULL) {
         fprintf(stderr, "Memory allocation error\n");
         exit(1);
     }
