@@ -19,7 +19,7 @@
 #include <netinet/ip6.h>
 #include <linux/tcp.h>
 #include <netdb.h>
-#include <mysql/mysql.h>
+#include <mariadb/mysql.h>
 
 // for mariadb .
 //#include <mariadb/my_global.h>
