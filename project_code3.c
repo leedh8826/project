@@ -21,6 +21,9 @@
 #include <netdb.h>
 #include <mariadb/mysql.h>
 
+// multi thread library h
+#include <pthread.h>
+
 // for mariadb .
 //#include <mariadb/my_global.h>
 
@@ -1261,6 +1264,7 @@ void set_dynamic_domain_list(MYSQL_RES* result) {
         // strdup함수는 문자열을 복사하는 함수 
         // malloc과 성향이 비슷 실패시 null을 반환
         global_list->domains[index] = strdup(row[0]);   
+        // 메모리 할당 실패시 메모리 전부 다시 초기화 후 프로그램 종료
         if (global_list->domains[index] == NULL) {
             fprintf(stderr, "String replication error\n");
             free_dynamic_domain_list();
@@ -1282,4 +1286,22 @@ void free_dynamic_domain_list() {
         free(global_list);
         global_list = NULL;
     }
+}
+#define TIEMSECOND 60 * 5
+// domain list thread
+void *db_thread(void *data) {
+    // Implement your database fetching logic here
+    while (1) {
+        printf("Fetching data from the database...\n");
+        // Fetch data from the database and process it
+        free_dynamic_domain_list();
+
+        // db connect 정보를 가지는 변수 필요
+        // 그걸가지고 select 명령어 req rsp 작업
+        // 동적 도메인 리스트 함수 호출 
+
+        sleep(TIEMSECOND); // Fetch data every 5 seconds
+    }
+    
+    return NULL;
 }
