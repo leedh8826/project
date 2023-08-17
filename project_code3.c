@@ -1010,17 +1010,11 @@ void print_ethdata(){
 }
 
 void print_ipdata(){
-    // struct sniff_ip *print_ip=get_ip();
-    // /* IP 주소를 아스키 코드로 */
-    // char * ip_buf,*ip_buf2;
+
 
     char src_ip[IP_STR_ADDR_LEN];
     char dst_ip[IP_STR_ADDR_LEN];
 
-    // ip_buf= inet_ntoa(print_ip->ip_dst);//4바이트아이피주소를 아스키로
-    // strcpy(dst_ip,ip_buf);
-    // ip_buf2 =inet_ntoa(print_ip->ip_src);
-    // strcpy(src_ip,ip_buf2);
 
     strcpy(dst_ip, inet_ntoa(get_ip()->ip_dst));
     strcpy(src_ip, inet_ntoa(get_ip()->ip_src));
@@ -1032,10 +1026,10 @@ void print_ipdata(){
 }
 void print_tcpdata(){
     /* TCP 포트번호의 네트워크데이터를 리틀엔디언 방식으로 변환 */
-    struct sniff_tcp *print_tcp=get_tcp();
+
     unsigned short tcp_port_src,tcp_port_dst;
-    tcp_port_src=ntohs(print_tcp->th_sport);
-    tcp_port_dst=ntohs(print_tcp->th_dport);
+    tcp_port_src=ntohs(get_tcp()->th_sport);
+    tcp_port_dst=ntohs(get_tcp()->th_dport);
 
     printf("src Port : %u\n" , tcp_port_src );
     printf("dst Port : %u\n" , tcp_port_dst);
