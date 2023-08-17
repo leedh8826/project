@@ -364,7 +364,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,const u_char *pac
     DYNAMIC_DOMAIN_LIST *check_domain_str = get_dynamic_domain_list();
     
     // -----------------------------------------------------
-    printf("\n\n %s \n\n", domain);
+    //printf("\n\n %s \n\n", domain);
     if ( domain_len ) {
         printf("domainlen\n");
         int cmp_ret = 0;
