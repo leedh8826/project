@@ -420,7 +420,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,const u_char *pac
 
             // 기존 코드로 대체-----------------------
 
-            free_dynamic_domain_list();
+            //free_dynamic_domain_list();
 
             //동적할당된 메모리 해제 
             // if ( check_domain_str != NULL ) {
