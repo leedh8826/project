@@ -538,6 +538,10 @@ int sendraw( u_char* pre_packet, int mode)
                 close( raw_socket );
                 
         }
+        #ifdef SUPPORT_OUTPUT
+        printf( "\n[sendraw] end .. \n\n" );
+		#endif
+
 		return ret ;
 }
 
