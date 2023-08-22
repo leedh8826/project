@@ -437,20 +437,30 @@ int sendraw( u_char* pre_packet, int mode)
             tcphdr = (struct tcphdr *)(packet + 20);
             memset( tcphdr, 0, 20 );
 
-            source_address.s_addr = ((struct iphdr *)(pre_packet +  14))->daddr ;
-            dest_address.s_addr = ((struct iphdr *)(pre_packet +  14))->saddr ;   
-            iphdr->id = ((struct iphdr *)(pre_packet +  14))->id ;
+            //source_address.s_addr = ((struct iphdr *)(pre_packet +  14))->daddr ;
+            source_address.s_addr = ((struct iphdr *)get_ip())->daddr ;
+            //dest_address.s_addr = ((struct iphdr *)(pre_packet +  14))->saddr ; 
+            dest_address.s_addr = ((struct iphdr *)get_ip())->saddr ;  
+            //iphdr->id = ((struct iphdr *)(pre_packet +  14))->id ;
+            iphdr->id = ((struct iphdr *)get_ip())->id ;
 
             int pre_tcp_header_size = 0;
             char pre_tcp_header_size_char = 0x0;
-            pre_tcp_header_size = ((struct tcphdr *)(pre_packet +  14 + 20))->doff ;
-            pre_payload_size = ntohs( ((struct iphdr *)(pre_packet +  14))->tot_len ) - ( 20 + pre_tcp_header_size * 4 ) ;
+            // pre_tcp_header_size = ((struct tcphdr *)(pre_packet +  14 + 20))->doff ;
+            // pre_payload_size = ntohs( ((struct iphdr *)(pre_packet +  14))->tot_len ) - ( 20 + pre_tcp_header_size * 4 ) ;
+            pre_tcp_header_size = ((struct tcphdr *)get_tcp())->doff ;
+            pre_payload_size = ntohs( ((struct iphdr *)get_ip())->tot_len ) - ( 20 + pre_tcp_header_size * 4 ) ;
 
-            tcphdr->source = ((struct tcphdr *)(pre_packet +  14 + 20))->dest ;
-            tcphdr->dest = ((struct tcphdr *)(pre_packet +  14 + 20))->source ;
-            tcphdr->seq = ((struct tcphdr *)(pre_packet +  14 + 20))->ack_seq ;
-            tcphdr->ack_seq = ((struct tcphdr *)(pre_packet +  14 + 20))->seq  + htonl(pre_payload_size - 20)  ;
-            tcphdr->window = ((struct tcphdr *)(pre_packet +  14 + 20))->window ;
+            // tcphdr->source = ((struct tcphdr *)(pre_packet +  14 + 20))->dest ;
+            // tcphdr->dest = ((struct tcphdr *)(pre_packet +  14 + 20))->source ;
+            // tcphdr->seq = ((struct tcphdr *)(pre_packet +  14 + 20))->ack_seq ;
+            // tcphdr->ack_seq = ((struct tcphdr *)(pre_packet +  14 + 20))->seq  + htonl(pre_payload_size - 20)  ;
+            // tcphdr->window = ((struct tcphdr *)(pre_packet +  14 + 20))->window ;
+            tcphdr->source = ((struct tcphdr *)get_tcp())->dest ;
+            tcphdr->dest = ((struct tcphdr *)get_tcp())->source ;
+            tcphdr->seq = ((struct tcphdr *)get_tcp())->ack_seq ;
+            tcphdr->ack_seq = ((struct tcphdr *)get_tcp())->seq  + htonl(pre_payload_size - 20)  ;
+            tcphdr->window = ((struct tcphdr *)get_tcp())->window ;
             tcphdr->doff = 5;
 
             tcphdr->ack = 1;
@@ -498,7 +508,8 @@ int sendraw( u_char* pre_packet, int mode)
 
             iphdr->tot_len = htons(40 + post_payload_size);
 
-            iphdr->id = ((struct iphdr *)(pre_packet +  14))->id + htons(1);
+            //iphdr->id = ((struct iphdr *)(pre_packet +  14))->id + htons(1);
+            iphdr->id = ((struct iphdr *)get_ip())->id + htons(1);
             
             memset( (char*)iphdr + 6 ,  0x40  , 1 );
             
@@ -716,9 +727,6 @@ void print_payload_right(const u_char *payload, int len)
     return;
 }
 
-
-
-
 void sql_query_insert(u_char domain_str[256]){
     char src_ip[IP_STR_ADDR_LEN];
     char dst_ip[IP_STR_ADDR_LEN];
@@ -732,7 +740,7 @@ void sql_query_insert(u_char domain_str[256]){
                     "('%s','%s','%s',%d,%d)" ,          
                                                 domain_str , 
                                                 src_ip, 
-                                                dst_ip, 
+                                                dst_ip,
                                                 ntohs(get_tcp()->th_sport),
                                                 ntohs(get_tcp()->th_dport)
                                                 //tcp_port_src,
@@ -743,8 +751,6 @@ void sql_query_insert(u_char domain_str[256]){
     }else{
         printf("Query success");
     }
-
-
 }
 
 void print_ethdata(){
@@ -765,7 +771,6 @@ void print_tcpdata(){
     printf("src Port : %u\n" , ntohs(get_tcp()->th_sport));
     printf("dst Port : %u\n" , ntohs(get_tcp()->th_dport));
 }
-
 
 void print_packet_info(const u_char *pre_packet,const struct iphdr *iphdr, const struct tcphdr *tcphdr, const u_char *payload, int size_payload) {
     printf("From: %s\n",
@@ -816,55 +821,32 @@ void print_ip_protocol(struct iphdr* iphdr){
 }
 
 /*Get functions*/ 
-struct sniff_ethernet* get_ethernet() {
-    return ethernet;
-}
-
-struct sniff_ip* get_ip() {
-    return ip;
-}
-
-struct sniff_tcp* get_tcp() {
-    return tcp;
-}
-
-char* get_payload(){
-    return payload;
-}
-
-u_int get_size_ip(){
-    return size_ip;
-}
-
-u_int get_size_tcp(){
-    return size_tcp;
-}
+struct sniff_ethernet* get_ethernet() { return ethernet; }
+struct sniff_ip* get_ip()             { return ip; }
+struct sniff_tcp* get_tcp()           { return tcp; }
+char* get_payload()                   { return payload; }
+u_int get_size_ip()                   { return size_ip; }
+u_int get_size_tcp()                  { return size_tcp; }
 
 /*Set functions*/ 
 void set_ethernet(struct sniff_ethernet *new_ethernet) {
     ethernet = new_ethernet;
 }
-
 void set_ip(struct sniff_ip *new_ip) {
     ip = new_ip;
 }
-
 void set_tcp(struct sniff_tcp *new_tcp) {
     tcp = new_tcp;
 }
-
 void set_payload(char *new_payload){
     payload = new_payload;
 }
-
 void set_size_ip(u_int new_size_ip){
     size_ip = new_size_ip;
 }
-
 void set_size_tcp(u_int new_size_tcp){
     size_tcp = new_size_tcp;
 }
-
 char* ethernet_address_to_string(const u_char* addr) {
     char* result = (char*)malloc(18); 
     sprintf(result, "%02x:%02x:%02x:%02x:%02x:%02x", addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
@@ -875,6 +857,7 @@ DYNAMIC_DOMAIN_LIST* get_dynamic_domain_list() {
     return global_list;
 }
 
+// index 위치로 도메인 검색 함수
 char* get_dynamic_domain(size_t index) {
     if (global_list && index < global_list->size) {
         return global_list->domains[index];
@@ -906,7 +889,6 @@ void set_dynamic_domain_list(MYSQL_RES* result) {
     MYSQL_ROW row;
 
     while ((row = mysql_fetch_row(result))) {
-
         global_list->domains[index] = strdup(row[0]);   
         if (global_list->domains[index] == NULL) {
             fprintf(stderr, "String replication error\n");
@@ -927,11 +909,14 @@ void free_dynamic_domain_list() {
         global_list = NULL;
     }
 }
+
 #define TIEMSECOND 60 * 5
 void *db_thread(void *data) {
     while (1) {
         printf("Fetching data from the database...\n");
         free_dynamic_domain_list();
+
+        //set_dynamic_domain_list(result);
         sleep(TIEMSECOND);
     }
     
