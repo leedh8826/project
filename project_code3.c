@@ -26,10 +26,10 @@
 #define SUPPORT_OUTPUT //프로그램이 컴파일될때 디버깅모드로 컴파일됨 
 
 // global variables ...
-//char if_bind_global[] = "enp0s3" ;
-char if_bind_global[] = "lo" ;
-//int if_bind_global_len = 6 ;
-int if_bind_global_len = 2 ;
+char if_bind_global[] = "enp0s3" ;
+//char if_bind_global[] = "lo" ;
+int if_bind_global_len = 6 ;
+//int if_bind_global_len = 2 ;
 
 int sendraw_mode = 1;
 
@@ -94,7 +94,7 @@ MYSQL *conn;
 MYSQL_RES *res=NULL;
 MYSQL_ROW row={0};
 MYSQL_FIELD *field;
-#define host_ip "192.168.111.51"
+#define host_ip "192.168.111.50"
 #define user_name "ubuntu"
 #define passwd  "1234"
 #define dbname  "project"
@@ -103,14 +103,6 @@ MYSQL_FIELD *field;
 // DB 도메인 목록을 저장할 구조체 와 전역 구조체 포인터 설정
 
 //----------------------------------------------------
-
-/* 패킷프로토콜 파트별 전역변수 */
-struct sniff_ethernet *ethernet;
-struct sniff_ip *ip;
-struct sniff_tcp *tcp;
-char *payload;
-u_int size_ip;
-u_int size_tcp;
 
 /* 가상헤더 구조체 */
 struct pseudohdr {
@@ -121,8 +113,16 @@ struct pseudohdr {
         u_int16_t   tcplength;
 };
 
+int gbl_debug = 1;
 
-int gbl_debug = 1; 
+/* 패킷프로토콜 파트별 전역변수 */
+struct sniff_ethernet *ethernet;
+struct sniff_ip *ip;
+struct sniff_tcp *tcp;
+char *payload;
+u_int size_ip;
+u_int size_tcp;
+
 
 /* get value func*/
 struct sniff_ethernet* get_ethernet() ;
@@ -150,6 +150,7 @@ void print_payload(const u_char *payload, int len);
 void print_payload_right(const u_char *payload, int len);
 void print_hex_ascii_line(const u_char *payload, int len, int offset);
 void print_hex_ascii_line_right(const u_char *payload, int len, int offset);
+
 unsigned short in_cksum ( u_short *addr , int len );
 
 int sendraw( u_char* pre_packet , int mode ) ;
@@ -264,6 +265,13 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,const u_char *pac
     set_ip((struct sniff_ip*)(packet + SIZE_ETHERNET));
     set_size_ip(IP_HL(get_ip())*4);
     u_char domain_str[256]={0x00};
+
+    /* 페이로드의 도메인 처리 */
+    u_char *domain = NULL;
+    u_char *domain_end=NULL;
+        
+    int domain_len = 0;
+    int cmp_ret = 0;
         
     if (size_ip < 20) {
         printf("   * Invalid IP header length: %u bytes\n", get_size_ip());
@@ -281,11 +289,6 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,const u_char *pac
     unsigned short int payload_len = 0;
     payload_len=ntohs(ip->ip_len)-get_size_ip()-get_size_tcp();
 
-    /* 페이로드의 도메인 처리 */
-    u_char *domain = NULL;
-    u_char *domain_end=NULL;
-        
-    int domain_len = 0;
     domain=strstr(payload,"Host: ");
         
     if(domain!=NULL){
@@ -299,8 +302,8 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,const u_char *pac
     /* DB에서 차단할 도메인을 가져옴 */
 
     DYNAMIC_DOMAIN_LIST *check_domain_str = get_dynamic_domain_list();
+    
     if ( domain_len ) {
-        int cmp_ret = 0;
         
         cmp_ret = 1;
         // for loop 1 .
@@ -323,19 +326,20 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,const u_char *pac
 
         } 
             
-            if ( cmp_ret == 0 ) {
-                printf("Domain : %s\n",domain_str);
-                print_ethdata();
-                print_ipdata();
-                print_tcpdata();
-                printf("INFO : domain blocked .\n");
-                int sendraw_ret = sendraw(packet , sendraw_mode);
-            } else { 
-                printf("INFO : domain allowed .\n");        
-            }
-            int query_stat = 0;
-            char query_str[1048576] = { 0x00 };
-            sql_query_insert(domain_str);
+        if ( cmp_ret == 0 ) {
+            printf("Domain : %s\n",domain_str);
+            print_ethdata();
+            print_ipdata();
+            print_tcpdata();
+            printf("INFO : domain blocked .\n");
+            int sendraw_ret = sendraw(packet , sendraw_mode);
+        } else { 
+            printf("INFO : domain allowed .\n");        
+        }
+            
+        //int query_stat = 0;
+        //char query_str[1048576] = { 0x00 };
+        sql_query_insert(domain_str);
         
     } 
 }   
@@ -421,6 +425,7 @@ int sendraw( u_char* pre_packet, int mode)
 				}
 
 			}
+
 			ethernet = (struct sniff_ethernet*)(pre_packet);
 			
 			if (!(ethernet->ether_type == (unsigned short)*(unsigned short*)&"\x08\x00" )) {
@@ -473,7 +478,7 @@ int sendraw( u_char* pre_packet, int mode)
                 "</head>\r\n"
                 "<body>\r\n"
                 "<center>\r\n"
-                "<img   src=\"http://127.0.0.1:3000/warning.jpg\" alter=\"*WARNING*\">\r\n"//67
+                "<img   src=\"http://192.168.111.50/warning.webp\" alter=\"*WARNING*\">\r\n"//67
                 "<h1>SITE BLOCKED</h1>\r\n"
                 "</center>\r\n"
                 "</body>\r\n"
@@ -530,27 +535,9 @@ int sendraw( u_char* pre_packet, int mode)
 						ret = 1 ;
 					}
 		        } 
-                /*
-				if ( (unsigned int)iphdr->daddr == (unsigned int)*(unsigned int*)"\xCB\xF6\x53\x2C" ) {
-					printf("##########################################################################################################################\n");
-					printf("##########################################################################################################################\n");
-					printf("##########################################################################################################################\n");
-					printf("##########################################################################################################################\n");
-					printf("##########################################################################################################################\n");
-					printf("##########################################################################################################################\n");
-					printf("##########################################################################################################################\n");
-					printf( "address1 == %hhu.%hhu.%hhu.%hhu\taddress2 == %X\taddress3 == %X\n",
-							*(char*)((char*)&source_address.s_addr + 0),*(char*)((char*)&source_address.s_addr + 1),
-							*(char*)((char*)&source_address.s_addr + 2),*(char*)((char*)&source_address.s_addr + 3),
-							source_address.s_addr,	(unsigned int)*(unsigned int*)"\xCB\xF6\x53\x2C" );
-				}
-                */
                 close( raw_socket );
                 
         }
-		#ifdef SUPPORT_OUTPUT
-        printf( "\n[sendraw] end .. \n\n" );
-		#endif
 		return ret ;
 }
 
@@ -729,20 +716,12 @@ void print_payload_right(const u_char *payload, int len)
 
 
 void sql_query_insert(u_char domain_str[256]){
-    struct sniff_ip *sql_ip=get_ip();
-    struct sniff_tcp *sql_tcp=get_tcp();
-    char * ip_buf,*ip_buf2;
     char src_ip[IP_STR_ADDR_LEN];
     char dst_ip[IP_STR_ADDR_LEN];
 
-    ip_buf= inet_ntoa(sql_ip->ip_dst);
-    strcpy(dst_ip,ip_buf);
-    ip_buf2 =inet_ntoa(sql_ip->ip_src);
-    strcpy(src_ip,ip_buf2);
+    strcpy(dst_ip,inet_ntoa(get_ip()->ip_dst));
+    strcpy(src_ip,inet_ntoa(get_ip()->ip_src));
 
-    unsigned short tcp_port_src,tcp_port_dst;
-    tcp_port_src=ntohs(sql_tcp->th_sport);
-    tcp_port_dst=ntohs(sql_tcp->th_dport);
     char query[1024]={0};
     
     sprintf(query , "INSERT INTO pcap_harmful_log ( harmful_domain,src_ip , des_ip , src_port , des_port) VALUES "
@@ -750,8 +729,10 @@ void sql_query_insert(u_char domain_str[256]){
                                                 domain_str , 
                                                 src_ip, 
                                                 dst_ip, 
-                                                tcp_port_src,
-                                                tcp_port_dst 
+                                                ntohs(get_tcp()->th_sport),
+                                                ntohs(get_tcp()->th_dport)
+                                                //tcp_port_src,
+                                                //tcp_port_dst 
              );
     if(mysql_query(conn,query)==-1){
         printf("ERROR: SQL query fail %s",mysql_error(conn) );        
@@ -772,40 +753,23 @@ void print_ethdata(){
 }
 
 void print_ipdata(){
-
-
-    char src_ip[IP_STR_ADDR_LEN];
-    char dst_ip[IP_STR_ADDR_LEN];
-
-
-    strcpy(dst_ip, inet_ntoa(get_ip()->ip_dst));
-    strcpy(src_ip, inet_ntoa(get_ip()->ip_src));
-
-    printf("IP src : %s\n", src_ip);
-    printf("IP dst : %s\n", dst_ip);
-
-
+    printf("IP src : %s\n", inet_ntoa(get_ip()->ip_src));
+    printf("IP dst : %s\n", inet_ntoa(get_ip()->ip_dst));
 }
+
 void print_tcpdata(){
-
-    unsigned short tcp_port_src,tcp_port_dst;
-    tcp_port_src=ntohs(get_tcp()->th_sport);
-    tcp_port_dst=ntohs(get_tcp()->th_dport);
-
-    printf("src Port : %u\n" , tcp_port_src );
-    printf("dst Port : %u\n" , tcp_port_dst);
-
+    printf("src Port : %u\n" , ntohs(get_tcp()->th_sport));
+    printf("dst Port : %u\n" , ntohs(get_tcp()->th_dport));
 }
 
 
 void print_packet_info(const u_char *pre_packet,const struct iphdr *iphdr, const struct tcphdr *tcphdr, const u_char *payload, int size_payload) {
-    char src_ip[IP_STR_ADDR_LEN];
-    char dst_ip[IP_STR_ADDR_LEN];
-    strcpy(dst_ip, inet_ntoa(*((struct in_addr *)&(iphdr->daddr))));
-    strcpy(src_ip, inet_ntoa(*((struct in_addr *)&(iphdr->saddr))));
-    printf("sendto Packet data :\n");
-    printf("From: %s\n",src_ip);
-    printf("To:   %s\n",dst_ip);
+    printf("From: %s\n",
+                    inet_ntoa(*((struct in_addr *)&(iphdr->saddr)))
+            );
+    printf("To:   %s\n",
+                    inet_ntoa(*((struct in_addr *)&(iphdr->daddr)))
+            );
    
     printf("Src port: %d\n", ntohs(tcphdr->source));
     printf("Dst port: %d\n", ntohs(tcphdr->dest));
@@ -885,7 +849,6 @@ void set_tcp(struct sniff_tcp *new_tcp) {
     tcp = new_tcp;
 }
 
-
 void set_payload(char *new_payload){
     payload = new_payload;
 }
@@ -897,7 +860,6 @@ void set_size_ip(u_int new_size_ip){
 void set_size_tcp(u_int new_size_tcp){
     size_tcp = new_size_tcp;
 }
-
 
 char* ethernet_address_to_string(const u_char* addr) {
     char* result = (char*)malloc(18); 
@@ -921,7 +883,6 @@ void set_dynamic_domain_list(MYSQL_RES* result) {
         fprintf(stderr, "Structure pointer is already set.\n");
         return;
     }
-
     global_list = (DYNAMIC_DOMAIN_LIST*)malloc(sizeof(DYNAMIC_DOMAIN_LIST));
     if (global_list == NULL) {
         fprintf(stderr, "Memory allocation error\n");
