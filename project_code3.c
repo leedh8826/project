@@ -300,6 +300,14 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,const u_char *pac
     }
    
     /* DB에서 차단할 도메인을 가져옴 */
+     // char check_domain[256] = "naver.com" ;
+	// char *check_domain_ptr[100000] = { NULL } ;
+	// for ( int i = 0 ; i < 100000 ; i++ ) {
+	// 	check_domain_ptr[i] = malloc(1024000);
+	// 	if ( check_domain_ptr[i] == NULL ) {
+	// 		fprintf(stderr, "ERROR: malloc fail !!\n");
+	// 	}
+	// }
 
     DYNAMIC_DOMAIN_LIST *check_domain_str = get_dynamic_domain_list();
     
