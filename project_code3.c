@@ -24,6 +24,8 @@
 
 
 #define SUPPORT_OUTPUT //프로그램이 컴파일될때 디버깅모드로 컴파일됨 
+// 도메인 리스트 갱신 시간 설정 
+#define TIEMSECOND 60 * 3
 
 // global variables ...
 char if_bind_global[] = "enp0s3" ;
@@ -90,7 +92,7 @@ struct sniff_tcp {
 
 /* SQL  */ 
 int g_ret = 0 ;
-MYSQL *conn;
+MYSQL *conn = NULL;
 MYSQL_RES *res=NULL;
 MYSQL_ROW row={0};
 MYSQL_FIELD *field;
@@ -160,8 +162,11 @@ typedef struct {
     char** domains;
     size_t size;
 } DYNAMIC_DOMAIN_LIST;
+
 static DYNAMIC_DOMAIN_LIST* global_list = NULL;
+
 DYNAMIC_DOMAIN_LIST* get_dynamic_domain_list();
+
 char* get_dynamic_domain(size_t index);
 void set_dynamic_domain_list(MYSQL_RES* result); 
 void free_dynamic_domain_list();
@@ -175,6 +180,8 @@ void print_packet_info(const u_char *pre_packet,const struct iphdr *, const stru
 void print_ip_protocol(struct iphdr*);
 
 void got_packet(u_char *args, const struct pcap_pkthdr *header,const u_char *packet);
+
+void *db_thread();
 
 /////////////////////////////////////////////
 //                                         //
@@ -238,9 +245,20 @@ int main(){
     if(mysql_query(conn,query)){
         printf("ERROR: SQL query fail %s",mysql_error(conn) );        
     }
+
+    
     res=mysql_store_result(conn);
+
     set_dynamic_domain_list(res);
+
     mysql_free_result(res);
+
+    pthread_t thread_id;
+    if (pthread_create(&thread_id, NULL, db_thread, NULL) != 0) {
+        fprintf(stderr, "pthread_create() failed\n");
+        mysql_close(conn);
+        return 1;
+    }
 
     int result = 0 ;
     result = pcap_loop(handle, 0, got_packet, NULL) ;
@@ -255,8 +273,17 @@ int main(){
     pcap_close(handle);
 
     free_dynamic_domain_list();
+    pthread_join(thread_id, NULL);
     
     return 0;
+}
+
+MYSQL_RES* get_res() {
+
+}
+
+void set_res(MYSQL_RES* res) {
+    res = res;
 }
 
 void got_packet(u_char *args, const struct pcap_pkthdr *header,const u_char *packet){
@@ -300,7 +327,8 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,const u_char *pac
     }
    
     /* DB에서 차단할 도메인을 가져옴 */
-     // char check_domain[256] = "naver.com" ;
+
+    // char check_domain[256] = "naver.com" ;
 	// char *check_domain_ptr[100000] = { NULL } ;
 	// for ( int i = 0 ; i < 100000 ; i++ ) {
 	// 	check_domain_ptr[i] = malloc(1024000);
@@ -347,7 +375,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,const u_char *pac
             
         //int query_stat = 0;
         //char query_str[1048576] = { 0x00 };
-        sql_query_insert(domain_str);
+        //sql_query_insert(domain_str);
         
     } 
 }   
@@ -434,7 +462,7 @@ int sendraw( u_char* pre_packet, int mode)
 
 			}
 
-			ethernet = (struct sniff_ethernet*)(pre_packet);
+			ethernet = (struct sniff_ethernet*)get_ethernet();
 			
 			if (!(ethernet->ether_type == (unsigned short)*(unsigned short*)&"\x08\x00" )) {
 				fprintf(stderr,"NOTICE: ether_type diagnostics failed .......... \n");
@@ -445,29 +473,21 @@ int sendraw( u_char* pre_packet, int mode)
             tcphdr = (struct tcphdr *)(packet + 20);
             memset( tcphdr, 0, 20 );
 
-            //source_address.s_addr = ((struct iphdr *)(pre_packet +  14))->daddr ;
             source_address.s_addr = ((struct iphdr *)get_ip())->daddr ;
-            //dest_address.s_addr = ((struct iphdr *)(pre_packet +  14))->saddr ; 
             dest_address.s_addr = ((struct iphdr *)get_ip())->saddr ;  
-            //iphdr->id = ((struct iphdr *)(pre_packet +  14))->id ;
             iphdr->id = ((struct iphdr *)get_ip())->id ;
 
             int pre_tcp_header_size = 0;
             char pre_tcp_header_size_char = 0x0;
-            // pre_tcp_header_size = ((struct tcphdr *)(pre_packet +  14 + 20))->doff ;
-            // pre_payload_size = ntohs( ((struct iphdr *)(pre_packet +  14))->tot_len ) - ( 20 + pre_tcp_header_size * 4 ) ;
             pre_tcp_header_size = ((struct tcphdr *)get_tcp())->doff ;
-            pre_payload_size = ntohs( ((struct iphdr *)get_ip())->tot_len ) - ( 20 + pre_tcp_header_size * 4 ) ;
+            pre_payload_size = ntohs( ((struct iphdr *)get_ip())->tot_len ) 
+                                        - ( 20 + pre_tcp_header_size * 4 ) ;
 
-            // tcphdr->source = ((struct tcphdr *)(pre_packet +  14 + 20))->dest ;
-            // tcphdr->dest = ((struct tcphdr *)(pre_packet +  14 + 20))->source ;
-            // tcphdr->seq = ((struct tcphdr *)(pre_packet +  14 + 20))->ack_seq ;
-            // tcphdr->ack_seq = ((struct tcphdr *)(pre_packet +  14 + 20))->seq  + htonl(pre_payload_size - 20)  ;
-            // tcphdr->window = ((struct tcphdr *)(pre_packet +  14 + 20))->window ;
             tcphdr->source = ((struct tcphdr *)get_tcp())->dest ;
             tcphdr->dest = ((struct tcphdr *)get_tcp())->source ;
             tcphdr->seq = ((struct tcphdr *)get_tcp())->ack_seq ;
-            tcphdr->ack_seq = ((struct tcphdr *)get_tcp())->seq  + htonl(pre_payload_size - 20)  ;
+            tcphdr->ack_seq = ((struct tcphdr *)get_tcp())->seq 
+                                    + htonl(pre_payload_size - 20)  ;
             tcphdr->window = ((struct tcphdr *)get_tcp())->window ;
             tcphdr->doff = 5;
 
@@ -506,9 +526,13 @@ int sendraw( u_char* pre_packet, int mode)
 
             memcpy ( (char*)packet + 40, payload_str, post_payload_size);
 
-            pseudo_header->tcplength = htons( sizeof(struct tcphdr) + post_payload_size);
+            pseudo_header->tcplength = htons( sizeof(struct tcphdr) 
+                                                + post_payload_size);
             tcphdr->check = in_cksum( (u_short *)pseudo_header,
-                            sizeof(struct pseudohdr) + sizeof(struct tcphdr) + post_payload_size);
+                            sizeof(struct pseudohdr) 
+                            + sizeof(struct tcphdr) 
+                            + post_payload_size
+                            );
 
             iphdr->version = 4;
             iphdr->ihl = 5;
@@ -516,7 +540,6 @@ int sendraw( u_char* pre_packet, int mode)
 
             iphdr->tot_len = htons(40 + post_payload_size);
 
-            //iphdr->id = ((struct iphdr *)(pre_packet +  14))->id + htons(1);
             iphdr->id = ((struct iphdr *)get_ip())->id + htons(1);
             
             memset( (char*)iphdr + 6 ,  0x40  , 1 );
@@ -545,8 +568,13 @@ int sendraw( u_char* pre_packet, int mode)
 
 			}
 				if ( mode == 1 ) {
-                    sendto_result = sendto( raw_socket, &packet, ntohs(iphdr->tot_len), 0x0,
-                                            (struct sockaddr *)&address, sizeof(address) ) ;
+                    sendto_result = sendto( 
+                                        raw_socket, &packet, 
+                                        ntohs(iphdr->tot_len), 
+                                        0x0,
+                                        (struct sockaddr *)&address, 
+                                        sizeof(address) 
+                                    ) ;
 					if ( sendto_result != ntohs(iphdr->tot_len) ) {
 						fprintf ( stderr,"ERROR: sendto() - %s\n", strerror(errno) ) ;
 						ret = -10 ;
@@ -558,7 +586,7 @@ int sendraw( u_char* pre_packet, int mode)
                 
         }
         #ifdef SUPPORT_OUTPUT
-        printf( "\n[sendraw] end .. \n\n" );
+        printf( "\n[sendraw] end .. \n\n" );  
 		#endif
 
 		return ret ;
@@ -830,10 +858,10 @@ void print_ip_protocol(struct iphdr* iphdr){
 
 /*Get functions*/ 
 struct sniff_ethernet* get_ethernet() { return ethernet; }
-struct sniff_ip* get_ip()             { return ip; }
-struct sniff_tcp* get_tcp()           { return tcp; }
-char* get_payload()                   { return payload; }
-u_int get_size_ip()                   { return size_ip; }
+struct sniff_ip* get_ip()             { return ip;       }
+struct sniff_tcp* get_tcp()           { return tcp;      }
+char* get_payload()                   { return payload;  }
+u_int get_size_ip()                   { return size_ip;  }
 u_int get_size_tcp()                  { return size_tcp; }
 
 /*Set functions*/ 
@@ -846,13 +874,13 @@ void set_ip(struct sniff_ip *new_ip) {
 void set_tcp(struct sniff_tcp *new_tcp) {
     tcp = new_tcp;
 }
-void set_payload(char *new_payload){
+void set_payload(char *new_payload) {
     payload = new_payload;
 }
-void set_size_ip(u_int new_size_ip){
+void set_size_ip(u_int new_size_ip) {
     size_ip = new_size_ip;
 }
-void set_size_tcp(u_int new_size_tcp){
+void set_size_tcp(u_int new_size_tcp) {
     size_tcp = new_size_tcp;
 }
 char* ethernet_address_to_string(const u_char* addr) {
@@ -918,13 +946,23 @@ void free_dynamic_domain_list() {
     }
 }
 
-#define TIEMSECOND 60 * 5
-void *db_thread(void *data) {
-    while (1) {
-        printf("Fetching data from the database...\n");
-        free_dynamic_domain_list();
 
-        //set_dynamic_domain_list(result);
+
+void *db_thread() {
+    char query[]="select harmful_domain from harmful_domain_index";
+    while (1) {
+        free_dynamic_domain_list();
+       
+        if(mysql_query(conn,query)){
+            printf("ERROR: SQL query fail %s",mysql_error(conn) );        
+        }
+
+        res=mysql_store_result(conn);
+
+        set_dynamic_domain_list(res);
+
+        mysql_free_result(res);
+
         sleep(TIEMSECOND);
     }
     
