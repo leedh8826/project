@@ -1,28 +1,15 @@
 import { useState, useEffect } from 'react';
-import LeftMenu from './LeftMenu';
-import RightContent from './RightContent';
-
-const host = process.env.DB_HOST;
-const user = process.env.DB_USER;
-const password = process.env.DB_PASSWORD;
-const database = process.env.DB_DATABASE;
-
-console.log(`DB_HOST: ${host}`);
-console.log(`DB_USER: ${user}`);
-console.log(`DB_PASSWORD: ${password}`);
-console.log(`DB_DATABASE: ${database}`);
-
 import styles from ".//style.module.css";
+
 export default function Home({ initialHarmfulDomains }) {
     const [harmfulDomains, setHarmfulDomains] = useState(initialHarmfulDomains);
     const [domain, setDomain] = useState('');
     const [selectedDomains, setSelectedDomains] = useState([]);
-    const [selectedMenu, setSelectedMenu] = useState('menu1');
 
-    
-    const handleMenuSelect = (menu) => {
-        setSelectedMenu(menu);
-    };
+    function VerticalLine({ className }) {
+        return <div className={`${styles['vertical-line']} ${className}`}></div>;
+      }
+
     const handleAddDomain = async () => {
         try {
             const response = await fetch('/api/add-domain', {
@@ -61,7 +48,7 @@ export default function Home({ initialHarmfulDomains }) {
         fetchData();
     }, []);
 
-    
+
     const handleCheckboxChange = (e, domain) => {
         if (e.target.checked) {
             setSelectedDomains(prevSelected => [...prevSelected, domain]);
@@ -97,22 +84,74 @@ export default function Home({ initialHarmfulDomains }) {
     };
 
     return (
-        <div className="container">
-            <div className="left-container">
-                <LeftMenu onSelect={handleMenuSelect} />
-            </div>
-            <div className="right-container">
-                <RightContent
-                selectedMenu={selectedMenu}
-                harmfulDomains={harmfulDomains}
-                selectedDomains={selectedDomains}
-                handleCheckboxChange={handleCheckboxChange}
-                handleAddDomain={handleAddDomain}
-                handleDeleteSelectedDomains={handleDeleteSelectedDomains}
-                domain={domain}
-                setDomain={setDomain}
-                />
-            </div>
+
+        <div>
+        <div className={styles['main']}><a href='/'>메인 페이지</a></div>
+        <div className={styles['log']}><a href='/domain_log'>접속 기록</a></div>
+        <div className={styles['list']}>차단 도메인</div>
+        <h2> Solution Development Phase1 </h2>
+        <hr></hr>
+        <VerticalLine className={styles['vertical-line']} />
+        {harmfulDomains && harmfulDomains.length > 0 ? (
+            <table  className={styles['table_set']}>
+                
+            <caption>차단 로그</caption>
+            <colgroup>
+                <col width='8%' />
+                <col width='*%' />
+                <col width='15%' />
+                <col width='15%' />
+            </colgroup>
+            <thead> 
+                <tr>
+                  
+                    <th>도메인 주소</th>
+                    <th>추가 날짜</th> 
+                    <th>체크</th>
+                   
+                </tr>
+                {harmfulDomains.map(domain => (
+                <tr>
+                   
+                  
+
+                    <th>
+                        {domain.harmful_domain}
+                    </th>
+                    <th>
+                        {domain.datetime}
+                    </th>  
+                    <th>
+                        <input
+                            type="checkbox"
+                            checked={selectedDomains.includes(domain.harmful_domain)}
+                            onChange={e => handleCheckboxChange(e, domain.harmful_domain)}
+                        />
+
+                    </th>
+                </tr>
+                ))}
+            </thead>
+            <tbody>
+            
+            </tbody>
+        </table>   
+        
+        ) : (
+            <p>No harmful domains found.</p>
+        )}
+        <p className={styles['input_box']}>
+            <input
+                type="text"
+                placeholder="Enter domain"
+                value={domain}
+                onChange={e => setDomain(e.target.value)}
+            />
+            <button onClick={handleAddDomain}>Add Domain</button>
+            <button onClick={handleDeleteSelectedDomains} disabled={selectedDomains.length === 0}>
+                Delete Selected
+            </button>
+        </p>
         </div>
-    );
+    )
 }
