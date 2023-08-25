@@ -1,28 +1,19 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import LeftMenu from './LeftMenu';
 import RightContent from './RightContent';
 
-const host = process.env.DB_HOST;
-const user = process.env.DB_USER;
-const password = process.env.DB_PASSWORD;
-const database = process.env.DB_DATABASE;
-
-console.log(`DB_HOST: ${host}`);
-console.log(`DB_USER: ${user}`);
-console.log(`DB_PASSWORD: ${password}`);
-console.log(`DB_DATABASE: ${database}`);
-
-import styles from ".//style.module.css";
 export default function Home({ initialHarmfulDomains }) {
     const [harmfulDomains, setHarmfulDomains] = useState(initialHarmfulDomains);
     const [domain, setDomain] = useState('');
     const [selectedDomains, setSelectedDomains] = useState([]);
     const [selectedMenu, setSelectedMenu] = useState('menu1');
+    const [pcapHarmfulLog, setPcapHarmfulLog] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
 
-    
     const handleMenuSelect = (menu) => {
         setSelectedMenu(menu);
     };
+
     const handleAddDomain = async () => {
         try {
             const response = await fetch('/api/add-domain', {
@@ -55,13 +46,22 @@ export default function Home({ initialHarmfulDomains }) {
 
     useEffect(() => {
         const fetchData = async () => {
-            const updatedDomains = await fetchHarmfulDomains();
-            setHarmfulDomains(updatedDomains);
+            try {
+                const updatedDomains = await fetchHarmfulDomains();
+                setHarmfulDomains(updatedDomains);
+                const response = await fetch('/api/get-domains-log');
+                const data = await response.json();
+                setPcapHarmfulLog(data.pcapHarmfulLog);
+                setIsLoading(false); // 데이터 로딩 완료
+            } catch (error) {
+                console.error('Error fetching domain list:', error);
+                setIsLoading(false); // 데이터 로딩 실패
+            }
         };
         fetchData();
     }, []);
 
-    
+
     const handleCheckboxChange = (e, domain) => {
         if (e.target.checked) {
             setSelectedDomains(prevSelected => [...prevSelected, domain]);
@@ -111,6 +111,8 @@ export default function Home({ initialHarmfulDomains }) {
                 handleDeleteSelectedDomains={handleDeleteSelectedDomains}
                 domain={domain}
                 setDomain={setDomain}
+                pcapHarmfulLog={pcapHarmfulLog}
+                isLoading={isLoading}
                 />
             </div>
         </div>

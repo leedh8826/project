@@ -1,6 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
-const RightContent = ({ selectedMenu, harmfulDomains, selectedDomains, handleCheckboxChange, handleAddDomain, handleDeleteSelectedDomains, domain, setDomain }) => {
+const RightContent = ({ selectedMenu, harmfulDomains, selectedDomains, handleCheckboxChange, 
+                      handleAddDomain, handleDeleteSelectedDomains, domain, setDomain, 
+                      pcapHarmfulLog, isLoading }) => {
+
+
   return (
     <div className="right-content">
       {selectedMenu === 'menu1' && (
@@ -36,7 +40,34 @@ const RightContent = ({ selectedMenu, harmfulDomains, selectedDomains, handleChe
           </p>
         </div>
       )}
-      {selectedMenu === 'menu2' && <div>Content for Menu 2</div>}
+      {selectedMenu === 'menu2' && 
+        <div>
+          <h1>Harmful Domain List</h1>
+          {isLoading ? (
+            <p>Loading...</p>
+          ) : (
+            pcapHarmfulLog.length > 0 ? (
+              <ul>
+                {pcapHarmfulLog.map((domain, index) => (
+                  <li key={index}>
+                    Idx: {domain.pcap_index}
+                    <ul>
+                      <li>Domain: {domain.harmful_domain}</li>
+                      <li>src_ip: {domain.src_ip}</li>
+                      <li>des_ip: {domain.des_ip} </li>
+                      <li>src_port: {domain.src_port} </li>
+                      <li>des_port: {domain.des_port}</li>
+                      <li>created_at: {domain.created_at}</li>
+                    </ul>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p>No domains in the log.</p>
+            )
+          )}
+        </div>
+      }
     </div>
   );
 };
