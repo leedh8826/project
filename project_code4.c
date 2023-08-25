@@ -25,7 +25,8 @@
 
 #define SUPPORT_OUTPUT //프로그램이 컴파일될때 디버깅모드로 컴파일됨 
 // 도메인 리스트 갱신 시간 설정 
-#define TIEMSECOND 60 * 3
+//#define TIEMSECOND 60 * 3
+#define TIEMSECOND 60 * 1
 
 // global variables ...
 char if_bind_global[] = "enp0s3" ;
@@ -96,11 +97,14 @@ MYSQL *conn = NULL;
 MYSQL_RES *res=NULL;
 MYSQL_ROW row={0};
 MYSQL_FIELD *field;
-#define host_ip "192.168.111.50"
-#define user_name "ubuntu"
-#define passwd  "1234"
-#define dbname  "project"
-#define port_num 3306
+
+// DB연결 정보를 환경 변수로 적용 (*환경변수는 같은 터미널에서 적용해야함 )
+// 네트워크 인터페이스 인해 sudo 로 프로그램 작업시 환경변수를 
+char *host_ip;          //export DB_HOST
+char *user_name;        //export DB_USER
+char *passwd;           //export DB_PASSWORD
+char *dbname;           //export DB_DATABASE
+unsigned int port_num;  //export DB_PORT
 
 // DB 도메인 목록을 저장할 구조체 와 전역 구조체 포인터 설정
 
@@ -125,6 +129,7 @@ char *payload;
 u_int size_ip;
 u_int size_tcp;
 
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /* get value func*/
 struct sniff_ethernet* get_ethernet() ;
@@ -157,18 +162,22 @@ unsigned short in_cksum ( u_short *addr , int len );
 
 int sendraw( u_char* pre_packet , int mode ) ;
 
-/* sql func */
 typedef struct {
-    char** domains;
+    char domain[256];
+} DOMAIN;
+
+typedef struct {
+    DOMAIN* domains;
     size_t size;
 } DYNAMIC_DOMAIN_LIST;
+
 
 static DYNAMIC_DOMAIN_LIST* global_list = NULL;
 
 DYNAMIC_DOMAIN_LIST* get_dynamic_domain_list();
 
 char* get_dynamic_domain(size_t index);
-void set_dynamic_domain_list(MYSQL_RES* result); 
+void set_dynamic_domain_list(MYSQL_RES*, DYNAMIC_DOMAIN_LIST**); 
 void free_dynamic_domain_list();
 void sql_query_insert(u_char [256]);
 
@@ -190,7 +199,6 @@ void *db_thread();
 
 
 int main(){
-
     pcap_t *handle;         /* Session handle */
     char *dev;          /* The device to sniff on */
     char errbuf[PCAP_ERRBUF_SIZE];  /* Error string */
@@ -201,6 +209,16 @@ int main(){
     struct pcap_pkthdr header;  /* The header that pcap gives us */
     const u_char *packet;       /* The actual packet */
     struct pcap_if *devs;
+    
+    //
+    host_ip   = getenv("DB_HOST");                             //export HOST_IP    =
+    user_name = getenv("DB_USER");                             //export USER_NAME  =
+    passwd    = getenv("DB_PASSWORD");                         //export PASSWD     =
+    dbname    = getenv("DB_DATABASE");                         //export DB_NAME    =
+    port_num  = (unsigned int)atoi(getenv("DB_PORT"));         //export PORT       =
+
+    // 뮤텍스 초기화
+    pthread_mutex_init(&mutex, NULL);
     
     /* Define the device */
     pcap_findalldevs(&devs, errbuf);
@@ -249,7 +267,7 @@ int main(){
     
     res=mysql_store_result(conn);
 
-    set_dynamic_domain_list(res);
+    set_dynamic_domain_list(res, &global_list);
 
     mysql_free_result(res);
 
@@ -272,19 +290,19 @@ int main(){
     /* And close the session */
     pcap_close(handle);
 
-    free_dynamic_domain_list();
+    free_dynamic_domain_list(get_dynamic_domain_list());
     pthread_join(thread_id, NULL);
     
     return 0;
 }
 
-// MYSQL_RES* get_res() {
+MYSQL_RES* get_res() {
 
-// }
+}
 
-// void set_res(MYSQL_RES* res) {
-//     res = res;
-// }
+void set_res(MYSQL_RES* res) {
+    res = res;
+}
 
 void got_packet(u_char *args, const struct pcap_pkthdr *header,const u_char *packet){
 
@@ -347,16 +365,16 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,const u_char *pac
         // 도메인 함수 get_dynamic_domain_list()->size로 100 대신 
         for ( int i = 0 ; i < check_domain_str->size ; i++ ) {
             
-            int str1_len = strlen ( check_domain_str->domains[i] );
+            int str1_len = strlen ( check_domain_str->domains[i].domain );
             int str2_len = strlen ( domain_str );
 
             if ( str1_len != str2_len ) { continue; }
             
-            cmp_ret = strcmp ( check_domain_str->domains[i], domain_str ) ;
+            cmp_ret = strcmp ( check_domain_str->domains[i].domain, domain_str ) ;
             if ( cmp_ret == 0 ) { break; }
             
             // break if meet null data array .
-            if ( strlen(check_domain_str->domains[i]) == 0 ) {
+            if ( strlen(check_domain_str->domains[i].domain) == 0 ) {
                 break; 
             }
 
@@ -375,7 +393,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,const u_char *pac
             
         //int query_stat = 0;
         //char query_str[1048576] = { 0x00 };
-        //sql_query_insert(domain_str);
+        sql_query_insert(domain_str);
         
     } 
 }   
@@ -511,13 +529,12 @@ int sendraw( u_char* pre_packet, int mode)
                 "<meta charset=\"UTF-8\">\r\n"
                 "<title>\r\n"
                 "CroCheck - WARNING - PAGE\r\n"
-                "SITE BLOCKED - WARNING - \r\n"//139
+                "SITE BLOCKED - WARNING - \r\n"
                 "</title>\r\n"
                 "</head>\r\n"
                 "<body>\r\n"
                 "<center>\r\n"
-                "<img   src=\"http://192.168.111.50/warning.webp\" alter=\"*WARNING*\">\r\n"//67
-                "<h1>SITE BLOCKED</h1>\r\n"
+                "<img   src=\"http://192.168.111.50/warning.jpg\" alter=\"*WARNING*\">\r\n"
                 "</center>\r\n"
                 "</body>\r\n"
                 "</html>";
@@ -567,22 +584,22 @@ int sendraw( u_char* pre_packet, int mode)
             print_packet_info(pre_packet,iphdr,tcphdr,payload,size_payload);
 
 			}
-			if ( mode == 1 ) {
-                sendto_result = sendto( 
-                                    raw_socket, &packet, 
-                                    ntohs(iphdr->tot_len), 
-                                    0x0,
-                                    (struct sockaddr *)&address, 
-                                    sizeof(address) 
-                                ) ;
-				if ( sendto_result != ntohs(iphdr->tot_len) ) {
-					fprintf ( stderr,"ERROR: sendto() - %s\n", strerror(errno) ) ;
-					ret = -10 ;
-				} else {
-					ret = 1 ;
-				}
-		    } 
-            close( raw_socket );
+				if ( mode == 1 ) {
+                    sendto_result = sendto( 
+                                        raw_socket, &packet, 
+                                        ntohs(iphdr->tot_len), 
+                                        0x0,
+                                        (struct sockaddr *)&address, 
+                                        sizeof(address) 
+                                    ) ;
+					if ( sendto_result != ntohs(iphdr->tot_len) ) {
+						fprintf ( stderr,"ERROR: sendto() - %s\n", strerror(errno) ) ;
+						ret = -10 ;
+					} else {
+						ret = 1 ;
+					}
+		        } 
+                close( raw_socket );
                 
         }
         #ifdef SUPPORT_OUTPUT
@@ -894,74 +911,79 @@ DYNAMIC_DOMAIN_LIST* get_dynamic_domain_list() {
 }
 
 // index 위치로 도메인 검색 함수
-char* get_dynamic_domain(size_t index) {
-    if (global_list && index < global_list->size) {
-        return global_list->domains[index];
-    }
-    return NULL;
-}
+// char* get_dynamic_domain(size_t index) {
+//     if (global_list && index < global_list->size) {
+//         return global_list->domains[index];
+//     }
+//     return NULL;
+// }
 
-void set_dynamic_domain_list(MYSQL_RES* result) {
-    if (global_list) {
+void set_dynamic_domain_list(MYSQL_RES* result, DYNAMIC_DOMAIN_LIST **domain_list) {
+
+    if (*domain_list) {
         fprintf(stderr, "Structure pointer is already set.\n");
         return;
     }
-    global_list = (DYNAMIC_DOMAIN_LIST*)malloc(sizeof(DYNAMIC_DOMAIN_LIST));
+
+    *domain_list = (DYNAMIC_DOMAIN_LIST*)malloc(sizeof(DYNAMIC_DOMAIN_LIST));
     if (global_list == NULL) {
         fprintf(stderr, "Memory allocation error\n");
         exit(1);
     }
+    
+    (*domain_list)->size = mysql_num_rows(result);
 
-    global_list->size = mysql_num_rows(result);
-
-    global_list->domains = (char**)malloc(global_list->size * sizeof(char*));
-    if (global_list->domains == NULL) {
+    (*domain_list)->domains = (DOMAIN*)malloc(sizeof(DOMAIN) * (*domain_list)->size);
+    if ((*domain_list)->domains == NULL) {
         fprintf(stderr, "Memory allocation error\n");
-        free(global_list);
+        free_dynamic_domain_list(*domain_list);
         exit(1);
     }
 
     size_t index = 0;
     MYSQL_ROW row;
-
+    
     while ((row = mysql_fetch_row(result))) {
-        global_list->domains[index] = strdup(row[0]);   
-        if (global_list->domains[index] == NULL) {
-            fprintf(stderr, "String replication error\n");
-            free_dynamic_domain_list();
-            exit(1);
-        }
+        strcpy((*domain_list)->domains[index].domain, row[0]);
         index++;
     }
 }
 
-void free_dynamic_domain_list() {
-    if (global_list) {
-        for (size_t i = 0; i < global_list->size; i++) {
-            free(global_list->domains[i]);
-        }
-        free(global_list->domains);
-        free(global_list);
-        global_list = NULL;
+void free_dynamic_domain_list(DYNAMIC_DOMAIN_LIST *domain_list) {
+    if (domain_list) {
+
+        free(domain_list->domains);
+        free(domain_list);
+
+        domain_list = NULL;
     }
 }
 
 
-
+// db select -> new domain list -> mutex lock -> list swap -> mutex unlock -> old memory free
 void *db_thread() {
     char query[]="select harmful_domain from harmful_domain_index";
+
     while (1) {
-        free_dynamic_domain_list();
-       
+        DYNAMIC_DOMAIN_LIST *new_domain_list = NULL;
+        DYNAMIC_DOMAIN_LIST *old_domain_list = NULL;
+        
         if(mysql_query(conn,query)){
             printf("ERROR: SQL query fail %s",mysql_error(conn) );        
         }
 
         res=mysql_store_result(conn);
 
-        set_dynamic_domain_list(res);
+        set_dynamic_domain_list(res, &new_domain_list);
 
-        mysql_free_result(res);
+        pthread_mutex_lock(&mutex);
+        old_domain_list = global_list;
+        global_list = new_domain_list;
+        pthread_mutex_unlock(&mutex);
+
+        free_dynamic_domain_list(old_domain_list);
+
+        if(res != NULL) mysql_free_result(res);
 
         sleep(TIEMSECOND);
     }
