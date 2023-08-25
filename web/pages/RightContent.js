@@ -14,32 +14,32 @@ const RightContent = ({ DomainLogPage,selectedMenu, harmfulDomains, selectedDoma
       {selectedMenu === 'menu1' && (
         <div>
           {harmfulDomains && harmfulDomains.length > 0 ? (
-             <table className={styles['table_set']}>
+             <table>
                  
              <thead > 
-                 <tr>
+                 <tr className={styles['table_st']}>
                    
-                     <th>도메인 주소</th>
-                     <th>추가 날짜</th> 
-                     <th>체크</th>
+                     <td className={styles['table_st']}>도메인 주소</td>
+                     <td className={styles['table_st']}>추가 날짜</td> 
+                     <td className={styles['table_st']}>체크</td>
                     
                  </tr>
                  {harmfulDomains.map(domain => (
                  <tr>
-                     <th>
+                     <td>
                          {domain.harmful_domain}
-                     </th>
-                     <th>
+                     </td>
+                     <td>
                          {domain.datetime}
-                     </th>  
-                     <th>
+                     </td>  
+                     <td>
                          <input
                              type="checkbox"
                              checked={selectedDomains.includes(domain.harmful_domain)}
                              onChange={e => handleCheckboxChange(e, domain.harmful_domain)}
                          />
  
-                     </th>
+                     </td>
                  </tr>
                  ))}
              </thead>
@@ -76,25 +76,25 @@ const RightContent = ({ DomainLogPage,selectedMenu, harmfulDomains, selectedDoma
                 <p>Loading...</p>
             ) : (
                 pcapHarmfulLog.length > 0 ? (
-                    <table className={styles['table_set']}>
+                    <table>
 
-                        <tr className={styles['table_st']}>
-                        <th>domain</th> 
-                                <th>src_ip</th>
-                                <th>des_ip </th>
-                                <th>src_port</th>
-                                <th>des_port</th>
-                                <th>created_at</th>
+                        <tr>
+                                <td className={styles['table_st']}>도메인</td> 
+                                <td className={styles['table_st']}>출발지IP</td>
+                                <td className={styles['table_st']}>목적지IP</td>
+                                <td className={styles['table_st']}>출발지포트</td>
+                                <td className={styles['table_st']}>목적지 포트</td>
+                                <td className={styles['table_st']}>접속 시간</td>
                         </tr>
                     {pcapHarmfulLog.map((domain, index) => (
                       
                             <tr>
-                                <th>{domain.harmful_domain}</th> 
-                                <th>{domain.src_ip}</th>
-                                <th>{domain.des_ip} </th>
-                                <th>{domain.src_port} </th>
-                                <th>{domain.des_port}</th>
-                                <th>{domain.created_at}</th>
+                                <td>{domain.harmful_domain}</td> 
+                                <td>{domain.src_ip}</td>
+                                <td>{domain.des_ip} </td>
+                                <td>{domain.src_port} </td>
+                                <td>{domain.des_port}</td>
+                                <td>{domain.created_at}</td>
                             </tr>
 
                     ))}
