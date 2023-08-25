@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import LeftMenu from './LeftMenu';
 import RightContent from './RightContent';
 
+import styles from ".//style.module.css";
 export default function Home({ initialHarmfulDomains }) {
     const [harmfulDomains, setHarmfulDomains] = useState(initialHarmfulDomains);
     const [domain, setDomain] = useState('');
@@ -9,11 +10,30 @@ export default function Home({ initialHarmfulDomains }) {
     const [selectedMenu, setSelectedMenu] = useState('menu1');
     const [pcapHarmfulLog, setPcapHarmfulLog] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-
+  
+    const DomainLogPage = () => {
+        const [pcapHarmfulLog, setPcapHarmfulLog] = useState([]);
+        const [isLoading, setIsLoading] = useState(true);
+    
+        useEffect(() => {
+            const fetchData = async () => {
+                try {
+                const response = await fetch('/api/get-domains-log');
+                const data = await response.json();
+                setPcapHarmfulLog(data.pcapHarmfulLog);
+                setIsLoading(false); // 데이터 로딩 완료
+                } catch (error) {
+                console.error('Error fetching domain list:', error);
+                setIsLoading(false); // 데이터 로딩 실패
+                }
+            };
+    
+            fetchData(); // fetchData 함수 호출
+        }, []);
+    }
     const handleMenuSelect = (menu) => {
         setSelectedMenu(menu);
     };
-
     const handleAddDomain = async () => {
         try {
             const response = await fetch('/api/add-domain', {
@@ -46,22 +66,21 @@ export default function Home({ initialHarmfulDomains }) {
 
     useEffect(() => {
         const fetchData = async () => {
-            try {
+            try{
                 const updatedDomains = await fetchHarmfulDomains();
                 setHarmfulDomains(updatedDomains);
                 const response = await fetch('/api/get-domains-log');
                 const data = await response.json();
                 setPcapHarmfulLog(data.pcapHarmfulLog);
                 setIsLoading(false); // 데이터 로딩 완료
-            } catch (error) {
-                console.error('Error fetching domain list:', error);
-                setIsLoading(false); // 데이터 로딩 실패
+            } catch (error){
+
             }
         };
         fetchData();
     }, []);
 
-
+    
     const handleCheckboxChange = (e, domain) => {
         if (e.target.checked) {
             setSelectedDomains(prevSelected => [...prevSelected, domain]);
@@ -111,6 +130,7 @@ export default function Home({ initialHarmfulDomains }) {
                 handleDeleteSelectedDomains={handleDeleteSelectedDomains}
                 domain={domain}
                 setDomain={setDomain}
+                DomainLogPage={DomainLogPage}
                 pcapHarmfulLog={pcapHarmfulLog}
                 isLoading={isLoading}
                 />
