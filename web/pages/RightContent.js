@@ -14,7 +14,7 @@ const RightContent = ({ DomainLogPage,selectedMenu, harmfulDomains, selectedDoma
       {selectedMenu === 'menu1' && (
         <div>
           {harmfulDomains && harmfulDomains.length > 0 ? (
-             <table>
+             <table className={styles['table_set']}>
                  
              <thead > 
                  <tr className={styles['table_st']}>
@@ -26,13 +26,9 @@ const RightContent = ({ DomainLogPage,selectedMenu, harmfulDomains, selectedDoma
                  </tr>
                  {harmfulDomains.map(domain => (
                  <tr>
-                     <td>
-                         {domain.harmful_domain}
-                     </td>
-                     <td>
-                         {domain.datetime}
-                     </td>  
-                     <td>
+                     <td className={styles['row_st']}>{domain.harmful_domain} </td>
+                     <td className={styles['row_st']}>{domain.datetime}</td>  
+                     <td className={styles['row_st']}>
                          <input
                              type="checkbox"
                              checked={selectedDomains.includes(domain.harmful_domain)}
@@ -76,7 +72,7 @@ const RightContent = ({ DomainLogPage,selectedMenu, harmfulDomains, selectedDoma
                 <p>Loading...</p>
             ) : (
                 pcapHarmfulLog.length > 0 ? (
-                    <table>
+                    <table className={styles['table_set']}>
 
                         <tr>
                                 <td className={styles['table_st']}>도메인</td> 
@@ -89,12 +85,12 @@ const RightContent = ({ DomainLogPage,selectedMenu, harmfulDomains, selectedDoma
                     {pcapHarmfulLog.map((domain, index) => (
                       
                             <tr>
-                                <td>{domain.harmful_domain}</td> 
-                                <td>{domain.src_ip}</td>
-                                <td>{domain.des_ip} </td>
-                                <td>{domain.src_port} </td>
-                                <td>{domain.des_port}</td>
-                                <td>{domain.created_at}</td>
+                                <td className={styles['row_st']}>{domain.harmful_domain}</td> 
+                                <td className={styles['row_st']}>{domain.src_ip}</td>
+                                <td className={styles['row_st']}>{domain.des_ip} </td>
+                                <td className={styles['row_st']}>{domain.src_port} </td>
+                                <td className={styles['row_st']}>{domain.des_port}</td>
+                                <td className={styles['row_st']}>{domain.created_at}</td>
                             </tr>
 
                     ))}

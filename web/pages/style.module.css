@@ -46,7 +46,7 @@
     }
     .table_set{
         border: 1px solid black;
-        width: 300;
+        width: 800px;
     }
    
    
@@ -65,5 +65,9 @@
         padding: 10px;
         background-color: grey;
         text-align: center;
-        color: aliceblue;
+        color: aliceblue;   
+    }
+    .row_st{
+        text-align: center;
+        
     }
