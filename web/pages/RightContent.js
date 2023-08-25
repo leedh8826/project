@@ -1,31 +1,23 @@
 import React from 'react';
 import styles from ".//style.module.css";
 //import '../styled-jsx/global.css';
-function VerticalLine({ className }) {
-  return <div className={`${styles['vertical-line']} ${className}`}></div>;
-}
+
 const RightContent = ({ DomainLogPage,selectedMenu, harmfulDomains, selectedDomains, handleCheckboxChange, handleAddDomain, 
                         handleDeleteSelectedDomains, domain, setDomain, pcapHarmfulLog, isLoading }) => {
   return (
-    <div className="right-content">
+    <div>
+      <div>
+        
+             <h2> Solution Development Phase1 </h2>
+             <hr></hr>
+          </div>
       {selectedMenu === 'menu1' && (
         <div>
-          <div className={styles['div_top']}>
-             <h2> Solution Development Phase1 </h2>
-          </div>
-          <div className={styles['div_rigth']}>
           {harmfulDomains && harmfulDomains.length > 0 ? (
-             <table  className={styles['table_set']}>
+             <table className={styles['table_set']}>
                  
-             <caption>차단 로그</caption>
-             <colgroup>
-                 <col width='8%' />
-                 <col width='*%' />
-                 <col width='15%' />
-                 <col width='15%' />
-             </colgroup>
              <thead > 
-                 <tr className={styles['table_st']}>
+                 <tr>
                    
                      <th>도메인 주소</th>
                      <th>추가 날짜</th> 
@@ -71,29 +63,21 @@ const RightContent = ({ DomainLogPage,selectedMenu, harmfulDomains, selectedDoma
                  Delete Selected
              </button>
          </p>
-          </div>
+          
         </div>
         
       )}
 
       {selectedMenu === 'menu2' && 
         <div>
-           <div className={styles['div_top']}>
-             <h2> Solution Development Phase1 </h2>
-          </div>
-            <div className={styles['div_rigth']}>
+           
+            <div>
             {DomainLogPage.isLoading ? (
                 <p>Loading...</p>
             ) : (
                 pcapHarmfulLog.length > 0 ? (
                     <table className={styles['table_set']}>
-                         <caption>차단 로그</caption>
-                        <colgroup>
-                            <col width='8%' />
-                            <col width='*%' />
-                            <col width='15%' />
-                            <col width='15%' />
-                        </colgroup>
+
                         <tr className={styles['table_st']}>
                         <th>domain</th> 
                                 <th>src_ip</th>
@@ -120,9 +104,6 @@ const RightContent = ({ DomainLogPage,selectedMenu, harmfulDomains, selectedDoma
                 )
             )}
             </div>
-            
-            <hr></hr>
-
             
         </div>}
     </div>
