@@ -24,12 +24,16 @@
     .table_set{
         border: 1px solid black;
         position: absolute; 
-        left: 221px; 
+        left: 180px; 
         top: 150px;
         width: 772px; 
         height: 98px;
         clear:both;
 
+    }
+    .table_st{
+        border: 1px solid black;
+        border-collapse: collapse;
     }
     .input_box{
         position: absolute; 
@@ -39,4 +43,22 @@
         height: 98px;
         clear:both;
     }
-    
+    .div_top{
+        border: 1px solid red;
+        width:1000px;
+        height: 100px;
+    }
+    .div_left{
+        border: 1px solid blue;
+        float: left;
+        width:150px;
+        height: 1000px;
+    }
+    .div_rigth{
+        border: 1px solid rgb(10, 9, 10);
+        
+        left:150px;
+        top:100px;
+        width:1000px;
+        height: 900px;
+    }

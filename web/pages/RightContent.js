@@ -9,12 +9,12 @@ const RightContent = ({ DomainLogPage,selectedMenu, harmfulDomains, selectedDoma
   return (
     <div className="right-content">
       {selectedMenu === 'menu1' && (
-         <div>
-         
-         <h2> Solution Development Phase1 </h2>
-         <hr></hr>
-         <VerticalLine className={styles['vertical-line']} />
-         {harmfulDomains && harmfulDomains.length > 0 ? (
+        <div>
+          <div className={styles['div_top']}>
+             <h2> Solution Development Phase1 </h2>
+          </div>
+          <div className={styles['div_rigth']}>
+          {harmfulDomains && harmfulDomains.length > 0 ? (
              <table  className={styles['table_set']}>
                  
              <caption>차단 로그</caption>
@@ -24,8 +24,8 @@ const RightContent = ({ DomainLogPage,selectedMenu, harmfulDomains, selectedDoma
                  <col width='15%' />
                  <col width='15%' />
              </colgroup>
-             <thead> 
-                 <tr className={styles['table_set']}>
+             <thead > 
+                 <tr className={styles['table_st']}>
                    
                      <th>도메인 주소</th>
                      <th>추가 날짜</th> 
@@ -34,9 +34,6 @@ const RightContent = ({ DomainLogPage,selectedMenu, harmfulDomains, selectedDoma
                  </tr>
                  {harmfulDomains.map(domain => (
                  <tr>
-                    
-                   
- 
                      <th>
                          {domain.harmful_domain}
                      </th>
@@ -74,18 +71,17 @@ const RightContent = ({ DomainLogPage,selectedMenu, harmfulDomains, selectedDoma
                  Delete Selected
              </button>
          </p>
-         </div>
+          </div>
+        </div>
+        
       )}
 
       {selectedMenu === 'menu2' && 
         <div>
-            <div className={styles['main']}><a href='/'>메인 페이지</a></div>
-            <div className={styles['log']}><a href='/domain_log'>접속 기록</a></div>
-            <div className={styles['list']}>차단 도메인</div>
-            <h2> Solution Development Phase1 </h2>
-            <hr></hr>
-            <VerticalLine className={styles['vertical-line']} />
-
+           <div className={styles['div_top']}>
+             <h2> Solution Development Phase1 </h2>
+          </div>
+            <div className={styles['div_rigth']}>
             {DomainLogPage.isLoading ? (
                 <p>Loading...</p>
             ) : (
@@ -98,7 +94,7 @@ const RightContent = ({ DomainLogPage,selectedMenu, harmfulDomains, selectedDoma
                             <col width='15%' />
                             <col width='15%' />
                         </colgroup>
-                        <tr>
+                        <tr className={styles['table_st']}>
                         <th>domain</th> 
                                 <th>src_ip</th>
                                 <th>des_ip </th>
@@ -123,6 +119,11 @@ const RightContent = ({ DomainLogPage,selectedMenu, harmfulDomains, selectedDoma
                     <p>No domains in the log.</p>
                 )
             )}
+            </div>
+            
+            <hr></hr>
+
+            
         </div>}
     </div>
   );
