@@ -9,6 +9,14 @@ const pool = mariadb.createPool({
     connectionLimit:  5, 
 });
 
+// const pool = mariadb.createPool({
+//     host:             'localhost',          //export DB_HOST=localhost
+//     user:             'ubuntu',          //export DB_USER=
+//     password:         '1234',      //export DB_PASSWORD=
+//     database:         'project',      //export DB_DATABASE=
+//     connectionLimit:  5, 
+// });
+
 // 데이터베이스 쿼리 실행 함수
 async function queryDatabase(query, values = []) {
     let conn;
