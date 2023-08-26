@@ -910,14 +910,6 @@ DYNAMIC_DOMAIN_LIST* get_dynamic_domain_list() {
     return global_list;
 }
 
-// index 위치로 도메인 검색 함수
-// char* get_dynamic_domain(size_t index) {
-//     if (global_list && index < global_list->size) {
-//         return global_list->domains[index];
-//     }
-//     return NULL;
-// }
-
 void set_dynamic_domain_list(MYSQL_RES* result, DYNAMIC_DOMAIN_LIST **domain_list) {
 
     if (*domain_list) {
