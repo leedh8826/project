@@ -116,11 +116,14 @@ export default function Home({ initialHarmfulDomains }) {
     };
 
     return (
-        <div className="container">
-            <div className="left-container">
+        <div className={styles['container']}>
+                
+            <div className={styles['div_left']}>
+
                 <LeftMenu onSelect={handleMenuSelect} />
             </div>
-            <div className="right-container">
+            <div className={styles['div_rigth']}>
+
                 <RightContent
                 selectedMenu={selectedMenu}
                 harmfulDomains={harmfulDomains}
